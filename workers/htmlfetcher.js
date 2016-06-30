@@ -13,17 +13,9 @@ var archive = require('../helpers/archive-helpers');
 
 var http = require('http');
 
-module.exports = function(callback) {
+module.exports = function(callback, opt) {
 
-  var options = {
-    host: 'www.google.com',
-    port: 80,
-    path: '/',
-    method: 'GET'
-  };
-
-
-  var request = http.request(options, function(response) {
+  var request = http.request(opt, function(response) {
     var res = [];
     // console.log('STATUS: ' + response.statudCode);
     // console.log('HEADERS: ' + JSON.stringify(response.headers));
@@ -34,7 +26,7 @@ module.exports = function(callback) {
       request.write('data');
     });
     response.on('end', function() {
-      archive.makeFile(res.join(''), options.host); 
+      archive.makeFile(res.join(''), opt.host); 
       callback(res.join(''));
       request.end();
     });

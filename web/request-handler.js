@@ -28,9 +28,17 @@ exports.handleRequest = function (req, res) {
   };
 
   if (method === 'POST') {
+
+    var options = {
+      host: 'www.google.com',
+      port: 80,
+      path: '/',
+      method: 'POST'
+    };
+
     statusCode = 302;
 
-    if (archive.isUrlInList('www.example.com', check)) {
+    if (!archive.isUrlInList('www.example.com', check)) {
       archive.addUrlToList('www.example.com');
     }
 
@@ -45,6 +53,8 @@ exports.handleRequest = function (req, res) {
         console.log(err);
       }); 
 
+      //if file exists will return true, otherwise will return false
+      //note the file name is hard coded
       fs.stat(archive.paths.archivedSites + '/' + 'www.google.com', function(err, stats) {
         if (err) { return console.log('doesn\' exist!'); }
         console.log(stats.isFile());
@@ -58,12 +68,19 @@ exports.handleRequest = function (req, res) {
         body: htmlfetcher(function(content) {
           // console.log(content.toString());
           finish(content.toString());
-        })
+        }, options)
       };
 
     });
 
   } else {
+    var options = {
+      host: 'www.google.com',
+      port: 80,
+      path: '/',
+      method: 'GET'
+    };
+
     req.on('error', function(err) {
       console.log(err);
     }).on('data', function(chunk) {
@@ -76,14 +93,16 @@ exports.handleRequest = function (req, res) {
       }); 
 
       fs.stat(archive.paths.archivedSites + '/' + 'www.google.com', function(err, stats) {
-        if (err) { return console.log('doesn\' exist!'); }
+        if (err) { return console.log('doesn\'t exist!'); }
         console.log(stats.isFile());
       });
 
+      //if url is not archived return 404 status
       if (archive.isUrlArchived('www.google.com', function(arg) {
         if (!arg) { return false; }
         return arg;
       })) {
+        console.log('hi');
         statusCode = 404;
       }
 
@@ -95,7 +114,7 @@ exports.handleRequest = function (req, res) {
         body: htmlfetcher(function(content) {
           // console.log(content.toString());
           finish(content.toString());
-        })
+        }, options)
       };
 
     });

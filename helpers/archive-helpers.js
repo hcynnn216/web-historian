@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
+var htmlfetcher = require('../workers/htmlfetcher');
 
 /*
  * You will need to reuse the same paths many times over in the course of this sprint.
@@ -26,35 +27,54 @@ exports.initialize = function(pathsObj) {
 // modularize your code. Keep it clean!
 
 exports.readListOfUrls = function(callback) {
-  fs.readFile(this.paths.list, function(err, data) {
+  fs.readFile(exports.paths.list, 'utf8', function(err, data) {
     if (err) { throw err; }
-    callback(data);
+    callback(data.split('\n'));
   });
 };
 
 exports.isUrlInList = function(string, callback) {
-  fs.readFileSync(this.paths.list, function(err, data) {
+
+  fs.readFile(exports.paths.list, 'utf8', function(err, data) {
     if (err) { throw err; }
-    callback((data.indexOf(string) < 0) ? false : true);
+    callback((data.indexOf(string) < 0) ? false : true); 
   });
 };
 
-exports.addUrlToList = function(string) {
-  fs.appendFile(this.paths.list, string, function(err, data) {
+exports.addUrlToList = function(string, cb) {
+  fs.appendFile(exports.paths.list, string, function(err, data) {
     if (err) { throw err; }
     console.log('data appeneded!');
+    cb();
   });
 };
 
 exports.isUrlArchived = function(string, callback) {
-  fs.stat(this.paths.archivedSites + '/' + string, function(err, stats) {
-    if (err) { throw err; }
-    callback(stats.isFile());
+  fs.stat(exports.paths.archivedSites + '/' + string, function(err, stats) {
+    if (err === null) { 
+      console.log('File Exists!'); 
+      callback(true);
+    } else if (err.code === 'ENOENT') {
+      callback(false);
+    } 
   });
 };
 
-exports.downloadUrls = function() {
+exports.downloadUrls = function(arr) {
+  _.each(arr, function(item, index, arr) {
+    //if the arr is not in the archive
+    if (!exports.isUrlArchived(item, _.identity)) {
+      //call the function to download it
+      var option = {
+        host: item,
+        port: 80,
+        path: '/',
+        method: 'GET'
+      };
+      exports.makeFile(htmlfetcher(_.identity, option), item);
 
+    }
+  });
 };
 
 exports.makeFile = function(content, name) {

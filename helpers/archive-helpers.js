@@ -45,7 +45,8 @@ exports.addUrlToList = function(string, cb) {
   fs.appendFile(exports.paths.list, string, function(err, data) {
     if (err) { throw err; }
     console.log('data appeneded!');
-    cb();
+    var cbFunc = function () { return cb(); };
+    cbFunc();
   });
 };
 

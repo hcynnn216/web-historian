@@ -3,121 +3,88 @@ var archive = require('../helpers/archive-helpers');
 var fs = require('fs');
 var http = require('http');
 var htmlfetcher = require('../workers/htmlfetcher');
+var _ = require('underscore');
 // require more modules/folders here!
 
 exports.handleRequest = function (req, res) {
   var method = req.method;
   var url = req.url;
   var body = [];
-  var statusCode = 200;
+  var headers = {
+    'Content-Type': 'application/json',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'access-control-allow-headers': 'content-type, accept',
+    'access-control-max-age': 10, // Seconds.
+  };
 
+  //declare a callback for finish
   var finish = function(input) {
     res.write(JSON.stringify(input));
     res.end();
   };
-  var check = function(a) {
+
+  var readContent = function(callback, string) {
+    fs.readFile(string, function(err, data) {
+      if (err) { console.log(err); }
+      callback(data.toString());
+    });
+  };
+
+  var identity = function(a) {
     return a;
   };
 
+  console.log('this is the urllist', archive.paths.list);
 
-  var readContent = function(callback) {
-    fs.readFile(archive.paths.siteAssets + '/index.html', function(err, data) {
-      if (err) { console.log(err); }
-      callback(data);
-    });
-  };
-
-  if (method === 'POST') {
-
-    var options = {
-      host: 'www.google.com',
-      port: 80,
-      path: '/',
-      method: 'POST'
-    };
-
-    statusCode = 302;
-
-    if (!archive.isUrlInList('www.example.com', check)) {
-      archive.addUrlToList('www.example.com');
+  if (method === 'GET') {
+    if (archive.isUrlInList(url.slice(1), function(boolean) {
+      if (boolean) {
+        if (archive.isUrlArchived(url.slice(1), function(boolean) {
+          res.writeHead(200, headers);
+          readContent(finish, archive.paths.archivedSites + url);
+        })) { 
+          return;
+        } else {
+          htmlfetcher(finish, {host: url.slice(1) });
+        }
+      } else {
+        archive.addUrlToList(url.slice(1), function() {
+          console.log('URL is added to list');
+        });
+        htmlfetcher(finish, {host: url.slice(1) });
+      }
+    })) {
+      return;
     }
 
-    req.on('error', function(err) {
-      console.log(err);
-    }).on('data', function(chunk) {
-      body.push(chunk);
-    }).on('end', function() {
-    //   // body = Buffer.concat(body).toString();
+    if (url === '/') {
+      console.log('something');
+      res.writeHead(200, headers);
+      readContent(finish, archive.paths.siteAssets + '/index.html');
+      //else if it is archived
 
-      res.on('error', function(err) {
-        console.log(err);
-      }); 
+    } else {
+      res.writeHead(404, headers);
+      res.end();
+    //   var options = {
+    //     host: url.slice(1),
+    //     port: 80,
+    //     path: '/',
+    //     method: 'GET'
+    //   };
+    //   if (!isUrlArchived(url, identity)) {
+    //     console.log('we are at line 76');
+    //     res.writeHead(200, headers);
+    //     htmlfetcher(function(content) {
+    //       finish(content.toString());
+    //     }, options);
+    //   } 
+    } 
+  } else if (method === 'POST') {
+    res.writeHead(302, headers);
 
-      //if file exists will return true, otherwise will return false
-      //note the file name is hard coded
-      fs.stat(archive.paths.archivedSites + '/' + 'www.google.com', function(err, stats) {
-        if (err) { return console.log('doesn\' exist!'); }
-        console.log(stats.isFile());
-      });
 
-      res.writeHead(statusCode, {'Content-Type': 'application/json'});
-
-      var resBody = {
-        method: method,
-        url: url,
-        body: htmlfetcher(function(content) {
-          // console.log(content.toString());
-          finish(content.toString());
-        }, options)
-      };
-
-    });
-
-  } else {
-    var options = {
-      host: 'www.google.com',
-      port: 80,
-      path: '/',
-      method: 'GET'
-    };
-
-    req.on('error', function(err) {
-      console.log(err);
-    }).on('data', function(chunk) {
-      body.push(chunk);
-    }).on('end', function() {
-    //   // body = Buffer.concat(body).toString();
-
-      res.on('error', function(err) {
-        console.log(err);
-      }); 
-
-      fs.stat(archive.paths.archivedSites + '/' + 'www.google.com', function(err, stats) {
-        if (err) { return console.log('doesn\'t exist!'); }
-        console.log(stats.isFile());
-      });
-
-      //if url is not archived return 404 status
-      if (archive.isUrlArchived('www.google.com', function(arg) {
-        if (!arg) { return false; }
-        return arg;
-      })) {
-        console.log('hi');
-        statusCode = 404;
-      }
-
-      res.writeHead(statusCode, {'Content-Type': 'application/json'});
-
-      var resBody = {
-        method: method,
-        url: url,
-        body: htmlfetcher(function(content) {
-          // console.log(content.toString());
-          finish(content.toString());
-        }, options)
-      };
-
-    });
   }
 
 };
